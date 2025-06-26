@@ -80,22 +80,46 @@ def step1():
 def step2():
     error = None
     form_data = session.get('income') or {}
+
     if request.method == 'GET' and 'from_back' not in request.args:
         session.pop('income', None)  # clear only on first arrival
 
-
     if request.method == 'POST':
-        try:
-            wages = float(request.form.get('wages', 0))
-            interest = float(request.form.get('interest', 0))
-            dividends = float(request.form.get('dividends', 0))
-            business_income = float(request.form.get('business_income', 0))
-            other_income = float(request.form.get('other_income', 0))
+        # Collect raw input strings
+        wages_raw = request.form.get('wages', '').strip()
+        interest_raw = request.form.get('interest', '').strip()
+        dividends_raw = request.form.get('dividends', '').strip()
+        business_raw = request.form.get('business_income', '').strip()
+        other_raw = request.form.get('other_income', '').strip()
+        taxes_paid_raw = request.form.get('taxes_paid', '').strip()
 
-            if wages > 1000000 or other_income > 2000000:
+        # Check if ALL income fields are empty
+        if all(v == "" for v in [wages_raw, interest_raw, dividends_raw, business_raw, other_raw]):
+            error = "Please fill in at least one income field or enter 0 if no income."
+            form_data = {
+                'wages': wages_raw,
+                'interest': interest_raw,
+                'dividends': dividends_raw,
+                'business_income': business_raw,
+                'other_income': other_raw,
+                'taxes_paid': taxes_paid_raw
+            }
+            return render_template('form_step_2.html', error=error, form_data=form_data)
+
+        try:
+            # Convert all to float safely, treating empty as 0.0
+            wages = float(wages_raw) if wages_raw != "" else 0.0
+            interest = float(interest_raw) if interest_raw != "" else 0.0
+            dividends = float(dividends_raw) if dividends_raw != "" else 0.0
+            business_income = float(business_raw) if business_raw != "" else 0.0
+            other_income = float(other_raw) if other_raw != "" else 0.0
+            taxes_paid = float(taxes_paid_raw) if taxes_paid_raw != "" else 0.0
+
+            # Validation checks
+            if wages > 1_000_000 or other_income > 2_000_000:
                 raise ValueError("Income values exceed allowed range.")
 
-            taxes_paid = float(request.form.get('taxes_paid', 0))
+            # Save in session
             form_data = {
                 'wages': wages,
                 'interest': interest,
@@ -104,20 +128,20 @@ def step2():
                 'other_income': other_income,
                 'taxes_paid': taxes_paid
             }
-
             session['income'] = form_data
             return redirect('/step3')
+
         except ValueError as ve:
             error = str(ve)
+            # Preserve raw strings in case of error
             form_data = {
-                'wages': request.form.get('wages', ''),
-                'interest': request.form.get('interest', ''),
-                'dividends': request.form.get('dividends', ''),
-                'business_income': request.form.get('business_income', ''),
-                'other_income': request.form.get('other_income', ''),
-                'taxes_paid': request.form.get('taxes_paid', '')
+                'wages': wages_raw,
+                'interest': interest_raw,
+                'dividends': dividends_raw,
+                'business_income': business_raw,
+                'other_income': other_raw,
+                'taxes_paid': taxes_paid_raw
             }
-
 
     return render_template('form_step_2.html', error=error, form_data=form_data)
 
@@ -126,58 +150,71 @@ def step2():
 def step3():
     errors = []
     form_data = session.get('deductions') or {}
+
     if request.method == 'GET' and 'from_back' not in request.args:
         session.pop('deductions', None)
 
-
     if request.method == 'POST':
-        deduction_type = request.form.get('deduction_type')
+        deduction_type = request.form.get('deduction_type', 'standard')
         form_data['deduction_type'] = deduction_type
 
+        # Collect itemized values (even if not used)
         for field in ['mortgage', 'state_taxes', 'charity', 'medical']:
-            form_data[field] = request.form.get(field, '')
+            form_data[field] = request.form.get(field, '').strip()
+
+        mortgage = state_taxes = charity = medical = 0.0
+        agi = float(session.get('agi', 0))  # Must be set earlier in the flow
+
+        def safe_float(val):
+            try:
+                return float(val) if val.strip() not in ("", None) else 0.0
+            except:
+                return None
 
         if deduction_type == 'itemized':
-            try:
-                mortgage = float(form_data['mortgage'])
-                if mortgage < 0 or mortgage > 100000:
-                    errors.append("Mortgage must be a valid number between 0 and 100000.")
-            except ValueError:
+            # Mortgage Interest
+            mortgage = safe_float(form_data['mortgage'])
+            if mortgage is None:
                 errors.append("Mortgage must be a number.")
-            try:
-                state_taxes = float(form_data['state_taxes'])
-                if state_taxes < 0 or state_taxes > 50000:
-                    errors.append("State taxes must be between 0 and 50000.")
-            except ValueError:
+            elif mortgage > 50000:
+                errors.append("Mortgage interest seems too high. Max allowed is typically ~$50,000/year on a $750,000 loan.")
+
+            # State Taxes
+            state_taxes = safe_float(form_data['state_taxes'])
+            if state_taxes is None:
                 errors.append("State taxes must be a number.")
-            try:
-                charity = float(form_data['charity'])
-                if charity < 0 or charity > 50000:
-                    errors.append("Charity must be between 0 and 50000.")
-            except ValueError:
+            elif state_taxes > 10000:
+                errors.append("State and local tax deductions are capped at $10,000 by the IRS.")
+
+            # Charity
+            charity = safe_float(form_data['charity'])
+            if charity is None:
                 errors.append("Charity must be a number.")
-            try:
-                medical = float(form_data['medical'])
-                if medical < 0 or medical > 100000:
-                    errors.append("Medical expenses must be between 0 and 100000.")
-            except ValueError:
-                errors.append("Medical must be a number.")
-        else:
-            mortgage = state_taxes = charity = medical = 0
+            elif agi and charity > 0.6 * agi:
+                errors.append("Charitable contributions cannot exceed 60% of your AGI.")
+
+            # Medical
+            medical = safe_float(form_data['medical'])
+            if medical is None:
+                errors.append("Medical expenses must be a number.")
+            elif agi and medical < 0.075 * agi:
+                errors.append("Medical expenses are only deductible above 7.5% of AGI.")
+
+        # Dependents
+        dependents_raw = request.form.get('dependents', '').strip()
+        form_data['dependents'] = dependents_raw
 
         try:
-            dependents_raw = request.form.get('dependents', "0")
-            dependents = int(float(dependents_raw))
+            dependents = int(float(dependents_raw)) if dependents_raw else 0
             if dependents < 0 or dependents > 15:
                 errors.append("Dependents must be between 0 and 15.")
-        except ValueError:
+        except:
             errors.append("Dependents must be a whole number.")
-
-        form_data['dependents'] = dependents_raw
 
         if errors:
             return render_template('form_step_3.html', errors=errors, form_data=form_data)
 
+        # Save clean session
         session['deductions'] = {
             'deduction_type': deduction_type,
             'itemized': {

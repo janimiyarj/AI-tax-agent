@@ -5,34 +5,44 @@
   <title>AI Tax Agent – Simplified Tax Filing</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <!-- Google Fonts (Inter) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
   <!-- Bootstrap CSS CDN -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
   <!-- Custom Styles -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body class="bg-light">
+
+<body class="bg-light" style="font-family: 'Inter', sans-serif;">
 
   <!-- Navigation Header -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container">
-      <a class="navbar-brand fw-bold" href="/">AI Tax Agent</a>
-      <span class="text-white small">Powered by Flask & FPDF • 2023</span>
-    </div>
-  </nav>
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+  <div class="container d-flex justify-content-between align-items-center">
+    <a class="navbar-brand d-flex align-items-center" href="/">
+      <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="GreenGrowth CPAs" height="36">
+      <span class="ms-2 fw-bold text-dark">AI Tax Agent</span>
+    </a>
+    <span class="text-muted small d-none d-md-block">Powered by Flask & FPDF</span>
+  </div>
+</nav>
+
 
   <!-- Main Content -->
-  <main class="container py-4">
+  <main class="container py-5">
     {% block content %}{% endblock %}
   </main>
 
   <!-- Footer -->
-  <footer class="text-center text-muted py-3 small">
-    <hr>
-    &copy; {{ current_year }} AI Tax Agent – Prototype Only. Not for official use.
+  <footer class="bg-white border-top text-center text-muted small py-4 mt-5">
+    <div class="container">
+      &copy; {{ current_year }} <strong>AI Tax Agent</strong>. Built as a prototype for GreenGrowth CPAs.<br>
+      Not intended for official tax filing.
+    </div>
   </footer>
 
-  <!-- Optional Bootstrap + Custom JS -->
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
   <script src="{{ url_for('static', filename='js/form-logic.js') }}" defer></script>
 </body>

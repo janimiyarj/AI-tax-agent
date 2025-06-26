@@ -1,11 +1,13 @@
 def validate_amount(field_name, value, max_allowed):
     try:
-        val = float(value) if value not in ("", None) else 0.0
+        # Accept empty string and treat as 0.0
+        val = float(value.strip()) if value not in ("", None) else 0.0
         if val < 0 or val > max_allowed:
             raise ValueError
         return val
     except:
         raise ValueError(f"{field_name} must be a valid number between 0 and {max_allowed}.")
+
 
 
 def calculate_tax(income_data, deductions_data, filing_status, dependents, taxes_paid=0):
@@ -80,22 +82,26 @@ def calculate_tax(income_data, deductions_data, filing_status, dependents, taxes
         effective_rate = (tax_owed / total_income * 100) if total_income > 0 else 0
 
         # --- Refund / Tax Due
-        tax_due = max(0, tax_owed - taxes_paid)
-        refund = max(0, taxes_paid - tax_owed)
+        if tax_owed > taxes_paid:
+            final_tax_owed = round(tax_owed - taxes_paid, 2)
+            refund_amount = 0
+        else:
+            final_tax_owed = 0
+            refund_amount = round(taxes_paid - tax_owed, 2)
 
-        # --- Dependent credit (only when tax owed is $0)
+        # --- Dependent credit (only applies if no tax is owed)
         dependent_credit = 0
-        if tax_owed == 0 and dependents > 0:
+        if final_tax_owed == 0 and dependents > 0:
             dependent_credit = dependents * 12
-            refund += dependent_credit  # add to existing refund
+            refund_amount += dependent_credit
 
         return {
             "total_income": round(total_income, 2),
             "total_deductions": round(total_deductions, 2),
             "taxable_income": round(taxable_income, 2),
-            "tax_owed": round(tax_owed, 2),
-            "tax_due": round(tax_due, 2),
-            "refund": round(refund, 2),
+            "tax_owed": round(tax_owed, 2),  # raw before payments
+            "final_tax_owed": final_tax_owed,  # final after payments
+            "refund_amount": refund_amount,
             "effective_tax_rate": round(effective_rate, 2),
             "marginal_tax_rate": int(marginal_rate * 100)
         }
@@ -104,3 +110,4 @@ def calculate_tax(income_data, deductions_data, filing_status, dependents, taxes
         return {"error": str(ve)}
     except Exception as e:
         return {"error": f"Unexpected error: {str(e)}"}
+
