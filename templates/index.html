@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container text-center mt-5">
+  <h1 class="mb-4 fw-bold">Welcome to Your AI Tax Return Agent</h1>
+  <p class="lead">Streamline your tax preparation with smart automation.</p>
+
+  <div class="row justify-content-center my-4">
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="card-title">1️⃣ Enter Your Information</h5>
+          <p class="card-text small">We'll ask for your personal details, income sources, and deductions.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="card-title">2️⃣ We Calculate Your Tax</h5>
+          <p class="card-text small">We apply IRS tax rules to compute your refund or tax due.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="card-title">3️⃣ Get Your Tax Return</h5>
+          <p class="card-text small">Download a simplified 1040-style PDF for your records.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <a href="/step1" class="btn btn-primary btn-lg mt-4">Start My Tax Return →</a>
+
+  <p class="mt-5 text-muted small">
+    This is a prototype and should not be used for real tax filing. Always consult a professional.
+  </p>
+</div>
+{% endblock %}

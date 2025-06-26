@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">Step 3 of 3: Deductions & Dependents</h2>
+
+  {% if errors %}
+    <div class="alert alert-danger">
+      <ul>
+        {% for err in errors %}
+          <li>{{ err }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="POST" action="/step3" novalidate>
+    <div class="mb-4">
+      <label class="form-label">Deduction Type *</label>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="deduction_type" id="standard"
+               value="standard" {% if form_data.deduction_type == 'standard' %}checked{% endif %}>
+        <label class="form-check-label" for="standard">Standard Deduction</label>
+      </div>
+      <div class="form-check">
+        <input class="form-check-input" type="radio" name="deduction_type" id="itemized"
+               value="itemized" {% if form_data.deduction_type == 'itemized' %}checked{% endif %}>
+        <label class="form-check-label" for="itemized">Itemized Deduction</label>
+      </div>
+    </div>
+
+    <div id="itemized-section" style="{% if form_data.deduction_type != 'itemized' %}display:none;{% endif %}">
+      <h5>Itemized Deduction Details</h5>
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label for="mortgage" class="form-label">Mortgage Interest</label>
+          <input type="number" name="mortgage" id="mortgage" class="form-control"
+                 value="{{ form_data.mortgage or '' }}" min="0" step="0.01">
+        </div>
+        <div class="col-md-6">
+          <label for="state_taxes" class="form-label">State Taxes Paid</label>
+          <input type="number" name="state_taxes" id="state_taxes" class="form-control"
+                 value="{{ form_data.state_taxes or '' }}" min="0" step="0.01">
+        </div>
+      </div>
+
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label for="charity" class="form-label">Charitable Contributions</label>
+          <input type="number" name="charity" id="charity" class="form-control"
+                 value="{{ form_data.charity or '' }}" min="0" step="0.01">
+        </div>
+        <div class="col-md-6">
+          <label for="medical" class="form-label">Medical Expenses</label>
+          <input type="number" name="medical" id="medical" class="form-control"
+                 value="{{ form_data.medical or '' }}" min="0" step="0.01">
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="dependents" class="form-label">Number of Dependents *</label>
+      <input type="number" name="dependents" id="dependents" class="form-control"
+             min="0" max="15" value="{{ form_data.dependents or '' }}" required>
+    </div>
+
+    <div class="d-flex justify-content-between">
+      <a href="/step2" class="btn btn-outline-secondary">← Back</a>
+      <button type="submit" class="btn btn-primary">Finish →</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  const deductionRadios = document.querySelectorAll('input[name="deduction_type"]');
+  const itemizedSection = document.getElementById('itemized-section');
+
+  deductionRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      if (document.getElementById('itemized').checked) {
+        itemizedSection.style.display = 'block';
+      } else {
+        itemizedSection.style.display = 'none';
+      }
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">Your Tax Summary for 2023</h2>
+
+  <div class="alert alert-info">
+    <strong>Filing Status:</strong> {{ info.filing_status | capitalize }} <br>
+    <strong>Full Name:</strong> {{ info.full_name }} <br>
+    <strong>Address:</strong> {{ info.address }}, {{ info.city }}, {{ info.state }} - {{ info.zip_code }}
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <h5>Income Summary</h5>
+      <ul class="list-group mb-3">
+        <li class="list-group-item">Wages: ${{ income.wages }}</li>
+        <li class="list-group-item">Interest: ${{ income.interest }}</li>
+        <li class="list-group-item">Dividends: ${{ income.dividends }}</li>
+        <li class="list-group-item">Business Income: ${{ income.business_income }}</li>
+        <li class="list-group-item">Other Income: ${{ income.other_income }}</li>
+        <li class="list-group-item active">Total Income: ${{ result.total_income }}</li>
+      </ul>
+    </div>
+
+    <div class="col-md-6">
+      <h5>Deductions & Credits</h5>
+      <ul class="list-group mb-3">
+        <li class="list-group-item">Deduction Type: {{ deductions.deduction_type | capitalize }}</li>
+        {% if deductions.deduction_type == 'itemized' %}
+          <li class="list-group-item">Mortgage: ${{ deductions.itemized.mortgage }}</li>
+          <li class="list-group-item">State Taxes: ${{ deductions.itemized.state_taxes }}</li>
+          <li class="list-group-item">Charity: ${{ deductions.itemized.charity }}</li>
+          <li class="list-group-item">Medical: ${{ deductions.itemized.medical }}</li>
+        {% endif %}
+        <li class="list-group-item">Dependents: {{ deductions.dependents }}</li>
+        <li class="list-group-item active">Total Deductions: ${{ result.total_deductions }}</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <h5>Tax Result</h5>
+        {% if result.tax_due > 0 %}
+      <h4 class="text-danger">You owe: ${{ result.tax_due }}</h4>
+      {% elif result.refund > 0 %}
+        <h4 class="text-success">Congratulations! You’re getting a refund of ${{ result.refund }}</h4>
+      {% else %}
+        <h4>No taxes owed or refund due.</h4>
+      {% endif %}
+      <div class="card {% if result.tax_owed > 0 %}border-danger{% else %}border-success{% endif %}">
+        <div class="card-body">
+          <h4 class="card-title">
+            {% if result.tax_owed > 0 %}
+              You Owe: <span class="text-danger">${{ result.tax_owed }}</span>
+            {% else %}
+              Refund Due: <span class="text-success">${{ result.refund_due }}</span>
+            {% endif %}
+          </h4>
+          <p class="card-text">Taxable Income: ${{ result.taxable_income }}</p>
+          <p class="card-text">Effective Tax Rate: {{ result.effective_tax_rate }}%</p>
+          <p class="card-text">Marginal Tax Rate: {{ result.marginal_tax_rate }}%</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-4 d-flex justify-content-between">
+    <a href="/" class="btn btn-outline-secondary">← Start Over</a>
+    <a href="/download" class="btn btn-primary">Download Tax Return PDF</a>
+  </div>
+</div>
+{% endblock %}

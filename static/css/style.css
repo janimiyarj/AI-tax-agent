@@ -1,0 +1,78 @@
+/* General Layout */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8f9fa;
+  color: #212529;
+}
+
+h2, h4, h5 {
+  font-weight: 600;
+}
+
+label {
+  font-weight: 500;
+}
+
+input, select {
+  font-size: 15px !important;
+}
+
+form {
+  background-color: #ffffff;
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Buttons */
+button, .btn {
+  font-size: 15px;
+  padding: 10px 20px;
+  border-radius: 6px;
+}
+
+.btn-primary {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+.btn-success {
+  background-color: #198754;
+  border-color: #198754;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #e2e6ea;
+}
+
+/* Alerts and Cards */
+.alert-info {
+  background-color: #e7f1ff;
+  border-left: 4px solid #0d6efd;
+}
+
+.card {
+  margin-top: 20px;
+  border-radius: 6px;
+}
+
+.card-body p {
+  margin-bottom: 0.4rem;
+}
+
+/* Lists */
+.list-group-item.active {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+/* Footer */
+footer {
+  margin-top: 40px;
+  color: #6c757d;
+}
+
+/* Utility */
+small.text-muted {
+  font-size: 0.85rem;
+}
