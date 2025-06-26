@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, session, send_file, url_for
 from tax_logic import calculate_tax
-from pdf_generator import generate_tax_pdf
+from pdf_generator import generate_better_tax_pdf
 import os
 import re
 from datetime import datetime
@@ -82,7 +82,7 @@ def step2():
     form_data = session.get('income') or {}
 
     if request.method == 'GET' and 'from_back' not in request.args:
-        session.pop('income', None)  # clear only on first arrival
+        session.pop('income', None)
 
     if request.method == 'POST':
         # Collect raw input strings
@@ -93,34 +93,43 @@ def step2():
         other_raw = request.form.get('other_income', '').strip()
         taxes_paid_raw = request.form.get('taxes_paid', '').strip()
 
-        # Check if ALL income fields are empty
-        if all(v == "" for v in [wages_raw, interest_raw, dividends_raw, business_raw, other_raw]):
-            error = "Please fill in at least one income field or enter 0 if no income."
-            form_data = {
-                'wages': wages_raw,
-                'interest': interest_raw,
-                'dividends': dividends_raw,
-                'business_income': business_raw,
-                'other_income': other_raw,
-                'taxes_paid': taxes_paid_raw
-            }
+        # Prepare form_data to repopulate fields in case of error
+        form_data = {
+            'wages': wages_raw,
+            'interest': interest_raw,
+            'dividends': dividends_raw,
+            'business_income': business_raw,
+            'other_income': other_raw,
+            'taxes_paid': taxes_paid_raw
+        }
+
+        # Error if all fields are empty
+        if all(v == "" for v in [wages_raw, interest_raw, dividends_raw, business_raw, other_raw, taxes_paid_raw]):
+            error = "Please fill at least one field. If no income, enter 0 in the appropriate boxes."
             return render_template('form_step_2.html', error=error, form_data=form_data)
 
         try:
-            # Convert all to float safely, treating empty as 0.0
-            wages = float(wages_raw) if wages_raw != "" else 0.0
-            interest = float(interest_raw) if interest_raw != "" else 0.0
-            dividends = float(dividends_raw) if dividends_raw != "" else 0.0
-            business_income = float(business_raw) if business_raw != "" else 0.0
-            other_income = float(other_raw) if other_raw != "" else 0.0
-            taxes_paid = float(taxes_paid_raw) if taxes_paid_raw != "" else 0.0
+            # Convert to float, treating empty as 0.0
+            wages = float(wages_raw) if wages_raw else 0.0
+            interest = float(interest_raw) if interest_raw else 0.0
+            dividends = float(dividends_raw) if dividends_raw else 0.0
+            business_income = float(business_raw) if business_raw else 0.0
+            other_income = float(other_raw) if other_raw else 0.0
+            taxes_paid = float(taxes_paid_raw) if taxes_paid_raw else 0.0
 
-            # Validation checks
-            if wages > 1_000_000 or other_income > 2_000_000:
-                raise ValueError("Income values exceed allowed range.")
+            # Field validations
+            if wages < 0 or wages > 1_000_000:
+                error = "Wages must be a valid number between 0 and 1,000,000."
+            elif other_income < 0 or other_income > 2_000_000:
+                error = "Other income must be between 0 and 2,000,000."
+            elif any(val < 0 for val in [interest, dividends, business_income, taxes_paid]):
+                error = "Income fields cannot be negative."
 
-            # Save in session
-            form_data = {
+            if error:
+                return render_template('form_step_2.html', error=error, form_data=form_data)
+
+            # Save cleaned values in session
+            session['income'] = {
                 'wages': wages,
                 'interest': interest,
                 'dividends': dividends,
@@ -128,20 +137,12 @@ def step2():
                 'other_income': other_income,
                 'taxes_paid': taxes_paid
             }
-            session['income'] = form_data
+
             return redirect('/step3')
 
-        except ValueError as ve:
-            error = str(ve)
-            # Preserve raw strings in case of error
-            form_data = {
-                'wages': wages_raw,
-                'interest': interest_raw,
-                'dividends': dividends_raw,
-                'business_income': business_raw,
-                'other_income': other_raw,
-                'taxes_paid': taxes_paid_raw
-            }
+        except ValueError:
+            error = "Please enter valid numeric values only."
+            return render_template('form_step_2.html', error=error, form_data=form_data)
 
     return render_template('form_step_2.html', error=error, form_data=form_data)
 
@@ -243,8 +244,10 @@ def summary():
         taxes_paid = float(income.get("taxes_paid", 0))
         result = calculate_tax(income, deductions, personal_info['filing_status'], deductions.get("dependents", 0), taxes_paid)
 
+        # ✅ Avoid generic error.html redirect
         if "error" in result:
-            return render_template("error.html", message=result["error"])
+            # Stay on step2 and repopulate values instead of redirecting to error
+            return render_template("form_step_2.html", error=result["error"], form_data=income)
 
         session['tax_result'] = result
         return render_template('summary.html', info=personal_info, income=income, deductions=deductions, result=result)
@@ -263,7 +266,10 @@ def download():
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"output/tax_return_{timestamp}.pdf"
-        generate_tax_pdf(personal_info, income, deductions, result, filename)
+
+        # ✅ Use the improved PDF generator
+        generate_better_tax_pdf(personal_info, income, deductions, result, filename)
+
         return send_file(filename, as_attachment=True)
     except Exception as e:
         return render_template('error.html', message="Failed to generate PDF: " + str(e))

@@ -1,12 +1,18 @@
 def validate_amount(field_name, value, max_allowed):
     try:
-        # Accept empty string and treat as 0.0
-        val = float(value.strip()) if value not in ("", None) else 0.0
+        if value in ("", None):
+            val = 0.0
+        elif isinstance(value, str):
+            val = float(value.strip())
+        else:
+            val = float(value)  # handles float, int, etc.
+        
         if val < 0 or val > max_allowed:
             raise ValueError
         return val
     except:
         raise ValueError(f"{field_name} must be a valid number between 0 and {max_allowed}.")
+
 
 
 
