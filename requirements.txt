@@ -1,2 +1,5 @@
 Flask==2.3.2
 fpdf2==2.7.5
+openai==0.27.8
+requests==2.31.0
+python-dotenv==1.0.0
