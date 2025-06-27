@@ -130,7 +130,6 @@ def step2():
     return render_template('form_step_2.html', form_data=session.get('income_data', {}))
 
 
-
 from flask import request, render_template, session, redirect
 from smart_suggestion import suggest_better_option  # assuming this is your function
 
@@ -207,32 +206,21 @@ def step3():
         }
 
         # --- Get OpenAI suggestion ---
-        suggestion = generate_financial_suggestion(
-            session.get('income_data', {}),
-            session.get('deductions', {}),
-            session.get('personal_info', {}),
-            float(session.get('income_data', {}).get('taxes_paid', 0) or 0)
-        )
-        print("🔍 OpenAI Suggestion Output:", suggestion)
+        # --- Check if suggestion already seen ---
+        if not session.get('suggestion_seen'):
+            suggestion = generate_financial_suggestion(
+                session.get('income_data', {}),
+                session.get('deductions', {}),
+                session.get('personal_info', {}),
+                float(session.get('income_data', {}).get('taxes_paid', 0) or 0)
+            )
+            print("🔍 OpenAI Suggestion Output:", suggestion)
 
-        if suggestion and suggestion.get("refund_boost", 0) > 0:
-            session['smart_suggestion'] = suggestion
-            return redirect('/suggestion_review')
+            if suggestion and suggestion.get("refund_boost", 0) > 0:
+                session['smart_suggestion'] = suggestion
+                return redirect('/suggestion_review')
 
-        # # --- Run Smart Suggestion ---
-        # def run_smart_suggestion():
-        #     return suggest_better_option(
-        #         session.get('income_data', {}),
-        #         session.get('deductions', {}),
-        #         session.get('personal_info', {}),
-        #         float(session.get('income_data', {}).get('taxes_paid', 0) or 0)
-        #     )
-
-        # suggestion = run_smart_suggestion()
-        # if suggestion:
-        #     session['smart_suggestion'] = suggestion
-        #     return redirect('/smart_suggestion')
-
+        # If already seen or no valid suggestion, go to summary
         return redirect('/summary')
 
     # On GET
@@ -263,19 +251,6 @@ def apply_suggestion():
     return redirect('/summary')
 
 
-@app.route('/smart_suggestion')
-def smart_suggestion():
-    suggestion = session.get('smart_suggestion')
-    
-    # If there's no suggestion or it's not beneficial, redirect to summary
-    if not suggestion or suggestion.get('refund_boost', 0) <= 0:
-        return redirect('/summary')
-
-    return render_template(
-        'smart_suggestion.html',
-        suggestion=suggestion
-    )
-
 @app.route('/suggestion_review', methods=['GET'])
 def suggestion_review():
     suggestion = session.get('smart_suggestion')
@@ -288,6 +263,7 @@ def suggestion_review():
 @app.route('/apply_openai_suggestion', methods=['GET', 'POST'])
 def apply_openai_suggestion():
     # ✅ Just redirect back to Step 3 without modifying session data
+    session['suggestion_seen'] = True
     return redirect('/step3')
 
 
