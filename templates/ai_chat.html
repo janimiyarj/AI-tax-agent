@@ -2,19 +2,33 @@
 {% extends "base.html" %}
 {% block content %}
 <h2>💬 Ask the AI Tax Advisor</h2>
+
 <form method="post">
     <textarea name="user_input" rows="4" style="width:100%;" placeholder="Hi buddy, Ask any question, I am here to help you..."></textarea><br>
-    <button type="submit">Submit</button>
-    <button type="submit" name="reset" value="1" style="margin-left:10px;">Reset History</button>
+    <button type="submit" class="btn btn-primary mt-2">Ask me</button>
+    <button type="submit" name="reset" value="1" class="btn btn-secondary mt-2 ms-2">Reset History</button>
+
+    <!-- Spinner -->
+    <div id="loadingSpinner" style="display: none; text-align: center; margin-top: 10px;">
+        <span class="spinner-border text-primary" role="status" aria-hidden="true"></span>
+        <span>Thinking...</span>
+    </div>
 </form>
 
 <hr>
 <h3>Conversation</h3>
-<div style="background:#f1f1f1; padding:15px;">
+<div style="background:#f1f1f1; padding:15px; border-radius: 8px;">
     {% for entry in chat_history %}
         <p><strong>You:</strong> {{ entry.user }}</p>
         <p><strong>AI:</strong> {{ entry.ai }}</p>
         <hr>
     {% endfor %}
 </div>
+
+<!-- JavaScript to handle spinner -->
+<script>
+    document.querySelector('form').addEventListener('submit', function () {
+        document.getElementById('loadingSpinner').style.display = 'block';
+    });
+</script>
 {% endblock %}

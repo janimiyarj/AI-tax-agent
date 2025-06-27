@@ -284,41 +284,14 @@ def suggestion_review():
 
     return render_template("suggestion_review.html", suggestion=suggestion)
 
-@app.route('/apply_openai_suggestion', methods=['POST'])
+
+@app.route('/apply_openai_suggestion', methods=['GET', 'POST'])
 def apply_openai_suggestion():
-    suggestion = session.get('smart_suggestion', {})
+    # ✅ Just redirect back to Step 3 without modifying session data
+    return redirect('/step3')
 
-    # Apply suggested values if available
-    if suggestion:
-        # Update filing status
-        if 'suggested_status' in suggestion:
-            session['personal_info']['filing_status'] = suggestion['suggested_status']
 
-        # Update deductions if suggestion includes them
-        if 'suggested_deductions' in suggestion:
-            session['deductions'] = suggestion['suggested_deductions']
-
-        # Update income if suggestion includes it (e.g., move income types)
-        if 'suggested_income' in suggestion:
-            session['income_data'] = suggestion['suggested_income']
-
-        # Recalculate tax with new values
-        income = session.get('income_data', {})
-        deductions = session.get('deductions', {})
-        dependents = deductions.get("dependents", 0)
-        taxes_paid = float(income.get("taxes_paid", 0) or 0)
-
-        session['tax_result'] = calculate_tax(
-            income_data=income,
-            deductions_data=deductions,
-            filing_status=session['personal_info'].get("filing_status", "single"),
-            dependents=dependents,
-            taxes_paid=taxes_paid
-        )
-
-    return redirect('/summary')
-
-@app.route('/reject_openai_suggestion', methods=['POST'])
+@app.route('/reject_openai_suggestion', methods=['GET', 'POST'])
 def reject_openai_suggestion():
     # Use existing values, just recalculate tax normally
     income = session.get('income_data', {})

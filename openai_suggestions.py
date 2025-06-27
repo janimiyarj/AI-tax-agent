@@ -7,18 +7,23 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def generate_financial_suggestion(income, deductions, personal_info, taxes_paid):
     prompt = f"""
-You are a certified financial advisor. Based on this taxpayer's profile, suggest one legal and smart tax strategy to increase refund or reduce tax owed.
+You are a certified financial advisor. Based on the following taxpayer's financial profile, suggest one legal and smart tax strategy to increase their refund or reduce their tax owed. 
+A "smart" strategy is one that is commonly applicable and aims for significant impact given the provided information.
 
-Filing Status: {personal_info.get("filing_status")}
-Income: {income}
-Deductions: {deductions}
-Taxes Paid: {taxes_paid}
+**Taxpayer's Profile:**
+* Filing Status: {personal_info['filing_status']}
+* Income: {income}
+* Deductions: {deductions}
+* Taxes Paid: {taxes_paid}
 
-Respond in the format:
+Keep the suggestion in the form of a short explanation and an estimated extra refund amount in U.S. dollars. The estimated extra refund should be a reasonable approximation based on typical tax savings from the suggested strategy.
+
+Respond in the exact format below, including the disclaimer:
+
 Explanation: <your suggestion text>
-Refund_Boost: <estimated extra refund as a number>
+Refund_Boost: <estimated extra refund as a whole number in USD>
+Disclaimer: This is a general tax strategy suggestion and not personalized tax advice. Please consult with a qualified tax professional for advice tailored to your specific situation.
 """
-
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4",

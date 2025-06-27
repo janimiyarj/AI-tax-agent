@@ -163,3 +163,8 @@ small.text-muted {
   color: #187250 !important;
 }
 
+.spinner-border {
+    width: 1.8rem;
+    height: 1.8rem;
+    vertical-align: middle;
+}
