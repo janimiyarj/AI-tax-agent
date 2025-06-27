@@ -6,17 +6,40 @@
     <div class="alert alert-danger">{{ error }}</div>
   {% endif %}
   <form method="POST" action="/login">
-  <div class="mb-3">
-    <label for="username" class="form-label">Username</label>
-    <input type="text" class="form-control" id="username" name="username" required>
-  </div>
+    <div class="mb-3">
+      <label for="username" class="form-label">Username</label>
+      <input type="text" class="form-control" id="username" name="username" required>
+    </div>
 
-  <div class="mb-3">
-    <label for="password" class="form-label">Password</label>
-    <input type="password" class="form-control" id="password" name="password" required>
-  </div>
+    <div class="mb-3">
+      <label for="password" class="form-label">Password</label>
+      <input type="password" class="form-control" id="password" name="password" required>
+    </div>
 
-  <button type="submit" class="btn btn-primary">Login</button>
-</form>
+    <button type="submit" class="btn btn-primary">Login</button>
+  </form>
 </div>
+
+<!-- ✅ Logout Success Toast -->
+{% if session.get('show_logout_toast') %}
+  <div class="position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+    <div id="logoutToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          ✅ You have been logged out successfully.
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const logoutToast = new bootstrap.Toast(document.getElementById('logoutToast'), {
+      delay: 5000
+    });
+    logoutToast.show();
+  </script>
+{% endif %}
+
 {% endblock %}
+

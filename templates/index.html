@@ -93,6 +93,11 @@
     <div class="main-box">
       <h1 class="mb-3">Welcome to Your AI Tax Return Agent</h1>
       <p class="lead mb-5">Streamline your tax preparation with smart automation.</p>
+      {% if current_user.is_authenticated %}
+        <div style="margin-bottom: 20px; font-weight: bold; font-size: 20px; color: #2c3e50;">
+          👋 Hello, {{ current_user.username }}!
+        </div>
+      {% endif %}
 
       <div class="row g-4 justify-content-center">
         <div class="col-md-4 fade-in">

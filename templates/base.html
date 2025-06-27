@@ -30,6 +30,9 @@
   </div>
   <div style="text-align: right;">
     <div style="font-size: 12px; color: #6b7280; margin-bottom: 2px;">Powered by Flask & FPDF</div>
+     {% if current_user.is_authenticated %}
+      <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-danger me-3">Logout</a>
+    {% endif %}
     <a href="{{ url_for('ai_chat') }}" style="margin-right: 18px; text-decoration: none; font-size: 14px; color: #007b7b; font-weight: 500;">
       💬 AI Chat
     </a>

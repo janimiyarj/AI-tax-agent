@@ -71,6 +71,8 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    toast = session.pop('show_logout_toast', False)  # Remove after 1 use
+    error = None
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         password = request.form['password']
@@ -84,6 +86,12 @@ def login():
         if row and bcrypt.check_password_hash(row[3], password):
             user = User(*row)
             login_user(user)
+            # 🧹 Clear session fields from previous user/form (but keep login session)
+            for key in [
+                'personal_info', 'income_data', 'deductions',
+                'tax_result', 'smart_suggestion', 'suggestion_seen'
+            ]:
+                session.pop(key, None)
             return redirect('/')
         else:
             return "Invalid credentials"
@@ -94,6 +102,7 @@ def login():
 @login_required
 def logout():
     logout_user()
+    session['show_logout_toast'] = True  # ✅ Set flag to show toast
     return redirect('/')
 
 @app.route('/')
