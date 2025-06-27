@@ -29,31 +29,8 @@ A full-stack AI-powered web application that assists users in preparing simplifi
 
 ##  Folder Structure
 
-/ai_tax_agent/
-│
-├── app.py # Main Flask app
-├── tax_logic.py # Core tax calculation logic
-├── openai_suggestions.py # AI smart filing suggestions
-├── smart_suggestion.py # Rule-based filing suggestion system
-├── pdf_generator.py # Tax form PDF generation
-├── user_auth.db # SQLite user credentials database
-│
-├── templates/ # HTML (Jinja2) templates
-│ ├── base.html
-│ ├── login.html
-│ ├── register.html
-│ ├── form_step_1.html
-│ ├── form_step_2.html
-│ ├── form_step_3.html
-│ ├── summary.html
-│ └── suggestion_review.html
-│
-├── static/ # CSS, JS, Images
-│ ├── css/
-│ ├── js/
-│ └── images/
-│
-└── README.md # 📍 You're here!
+![image](https://github.com/user-attachments/assets/13601573-cab8-48ae-baeb-7710a2ade9f7)
+
 
 yaml
 Copy
