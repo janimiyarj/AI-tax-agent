@@ -67,17 +67,22 @@ Edit
 
 ### Command 1:
    git clone https://github.com/yourname/ai-tax-agent.git
+  
    cd ai-tax-agent
+
 Install dependencies
 
 ### Command 2:
+
 pip install -r requirements.txt
+
 Set your OpenAI API key
 
 Create a .env file:
 
 ### Command 3:
 OPENAI_API_KEY=your_key_here
+
 Run the app
 
 ### Command 4:
