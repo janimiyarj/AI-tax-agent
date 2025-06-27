@@ -1,286 +1,308 @@
-from flask import Flask, render_template, request, redirect, session, send_file, url_for
-from tax_logic import calculate_tax
-from pdf_generator import generate_better_tax_pdf
-import os
-import re
+from flask import Flask, render_template, request, redirect, session, send_file
 from datetime import datetime
+import os, re
+from tax_logic import calculate_tax, generate_filled_pdf, suggest_smart_filing
 
 app = Flask(__name__)
-app.secret_key = 'your_super_secure_secret_key_here'  # Change for production use
+app.secret_key = 'your_secret_key_here'
 
-@app.context_processor
-def inject_current_year():
-    return {'current_year': datetime.now().year}
 
-# Landing Page
 @app.route('/')
-def home():
+def index():
     session.clear()
     return render_template('index.html')
 
-# Step 1: Personal Information
+from smart_suggestion import suggest_better_option
+
+def run_smart_suggestion():
+    income = session.get("income_data", {})
+    deductions = session.get("deductions", {})
+    personal_info = session.get("personal_info", {})
+    taxes_paid = float(income.get("taxes_paid", 0) or 0)
+
+    return suggest_better_option(income, deductions, personal_info, taxes_paid)
+
+
 @app.route('/step1', methods=['GET', 'POST'])
 def step1():
-    error = None
-    form_data = session.get('personal_info') or {}
-    if request.method == 'GET':
-        session.pop('personal_info', None)  
-
     if request.method == 'POST':
-        try:
-            full_name = request.form.get("full_name", "").strip()
-            if not full_name or len(full_name) > 100:
-                raise ValueError("Full name is required and must be under 100 characters.")
+        full_name = request.form.get('full_name', '').strip()
+        ssn = request.form.get('ssn', '').strip()
+        filing_status = request.form.get('filing_status', '')
+        address = request.form.get('address', '').strip()
+        city = request.form.get('city', '').strip()
+        state = request.form.get('state', '').strip()
+        zip_code = request.form.get('zip_code', '').strip()
 
-            ssn = request.form.get("ssn", "").strip()
-            if not ssn or not re.match(r"^\d{3}-\d{2}-\d{4}$", ssn):
-                raise ValueError("SSN format must be 123-45-6789")
-
-            filing_status = request.form.get("filing_status")
-            if filing_status not in ["single", "married_joint", "married_separate", "head_household"]:
-                raise ValueError("Invalid filing status selected.")
-
-            dependents_raw = request.form.get("dependents", "0")
-            dependents = int(float(dependents_raw))
-            if dependents < 0 or dependents > 15:
-                raise ValueError("Dependents must be between 0 and 15.")
-
-            form_data = {
+        errors = []
+        if not full_name:
+            errors.append("Please enter your full name.")
+        if not ssn or not re.match(r"^\d{3}-\d{2}-\d{4}$", ssn):
+            errors.append("Please enter a valid SSN in the format XXX-XX-XXXX.")
+        if not filing_status:
+            errors.append("Please select your filing status.")
+        if not address:
+            errors.append("Please enter your street address.")
+        if not city:
+            errors.append("City field is required.")
+        if not state or len(state) != 2:
+            errors.append("Enter a valid 2-letter state code (e.g., CA).")
+        if not zip_code:
+            errors.append("ZIP Code is required.")
+        print(errors)
+        if errors:
+            return render_template("form_step_1.html", form_data=request.form, errors=errors)
+        else:
+            session['personal_info'] = {
                 'full_name': full_name,
                 'ssn': ssn,
                 'filing_status': filing_status,
-                'address': request.form.get("address", "").strip(),
-                'city': request.form.get("city", "").strip(),
-                'state': request.form.get("state", "").strip(),
-                'zip_code': request.form.get("zip_code", "").strip(),
-                'dependents': dependents
+                'address': address,
+                'city': city,
+                'state': state,
+                'zip_code': zip_code
             }
+            return redirect('/step2')
 
-            session['personal_info'] = form_data
-            return redirect(url_for('step2'))
-
-        except ValueError as ve:
-            error = str(ve)
-            form_data = {
-                'full_name': request.form.get("full_name", "").strip(),
-                'ssn': request.form.get("ssn", "").strip(),
-                'filing_status': request.form.get("filing_status"),
-                'address': request.form.get("address", "").strip(),
-                'city': request.form.get("city", "").strip(),
-                'state': request.form.get("state", "").strip(),
-                'zip_code': request.form.get("zip_code", "").strip(),
-                'dependents': request.form.get("dependents", "0")
-            }
-
-
-    return render_template('form_step_1.html', error=error, form_data=form_data)
+    return render_template('form_step_1.html', form_data=session.get('personal_info', {}))
 
 
 @app.route('/step2', methods=['GET', 'POST'])
 def step2():
-    error = None
-    form_data = session.get('income') or {}
-
-    if request.method == 'GET' and 'from_back' not in request.args:
-        session.pop('income', None)
-
     if request.method == 'POST':
-        # Collect raw input strings
-        wages_raw = request.form.get('wages', '').strip()
-        interest_raw = request.form.get('interest', '').strip()
-        dividends_raw = request.form.get('dividends', '').strip()
-        business_raw = request.form.get('business_income', '').strip()
-        other_raw = request.form.get('other_income', '').strip()
-        taxes_paid_raw = request.form.get('taxes_paid', '').strip()
-
-        # Prepare form_data to repopulate fields in case of error
         form_data = {
-            'wages': wages_raw,
-            'interest': interest_raw,
-            'dividends': dividends_raw,
-            'business_income': business_raw,
-            'other_income': other_raw,
-            'taxes_paid': taxes_paid_raw
+            'wages': request.form.get('wages', ''),
+            'interest': request.form.get('interest', ''),
+            'dividends': request.form.get('dividends', ''),
+            'business_income': request.form.get('business_income', ''),
+            'other_income': request.form.get('other_income', ''),
+            'taxes_paid': request.form.get('taxes_paid', '')
         }
 
-        # Error if all fields are empty
-        if all(v == "" for v in [wages_raw, interest_raw, dividends_raw, business_raw, other_raw, taxes_paid_raw]):
-            error = "Please fill at least one field. If no income, enter 0 in the appropriate boxes."
-            return render_template('form_step_2.html', error=error, form_data=form_data)
+        errors = []
 
-        try:
-            # Convert to float, treating empty as 0.0
-            wages = float(wages_raw) if wages_raw else 0.0
-            interest = float(interest_raw) if interest_raw else 0.0
-            dividends = float(dividends_raw) if dividends_raw else 0.0
-            business_income = float(business_raw) if business_raw else 0.0
-            other_income = float(other_raw) if other_raw else 0.0
-            taxes_paid = float(taxes_paid_raw) if taxes_paid_raw else 0.0
+        def is_valid_number(val, min_val=0, max_val=1_000_000):
+            try:
+                f = float(val)
+                if f < min_val or f > max_val:
+                    return False
+                return True
+            except:
+                return False
 
-            # Field validations
-            if wages < 0 or wages > 1_000_000:
-                error = "Wages must be a valid number between 0 and 1,000,000."
-            elif other_income < 0 or other_income > 2_000_000:
-                error = "Other income must be between 0 and 2,000,000."
-            elif any(val < 0 for val in [interest, dividends, business_income, taxes_paid]):
-                error = "Income fields cannot be negative."
+        # Wages - Required
+        if not form_data['wages']:
+            errors.append("Wages (W-2) is required for federal filing.")
+        elif not is_valid_number(form_data['wages'], 0, 1_000_000):
+            errors.append("Wages (W-2) must be a valid number between $0 and $1,000,000.")
 
-            if error:
-                return render_template('form_step_2.html', error=error, form_data=form_data)
+        # Optional fields (check if entered, then validate)
+        if form_data['interest'] and not is_valid_number(form_data['interest'], 0, 500_000):
+            errors.append("Interest income must be a number between $0 and $500,000.")
 
-            # Save cleaned values in session
-            session['income'] = {
-                'wages': wages,
-                'interest': interest,
-                'dividends': dividends,
-                'business_income': business_income,
-                'other_income': other_income,
-                'taxes_paid': taxes_paid
-            }
+        if form_data['dividends'] and not is_valid_number(form_data['dividends'], 0, 500_000):
+            errors.append("Dividend income must be a number between $0 and $500,000.")
 
-            return redirect('/step3')
+        if form_data['business_income'] and not is_valid_number(form_data['business_income'], 0, 5_000_000):
+            errors.append("Business income must be a number between $0 and $5,000,000.")
 
-        except ValueError:
-            error = "Please enter valid numeric values only."
-            return render_template('form_step_2.html', error=error, form_data=form_data)
+        if form_data['other_income'] and not is_valid_number(form_data['other_income'], 0, 2_000_000):
+            errors.append("Other income must be a number between $0 and $2,000,000.")
 
-    return render_template('form_step_2.html', error=error, form_data=form_data)
+        if form_data['taxes_paid'] and not is_valid_number(form_data['taxes_paid'], 0, 1_000_000):
+            errors.append("Taxes paid must be a number between $0 and $1,000,000.")
 
+        if errors:
+            return render_template("form_step_2.html", form_data=form_data, errors=errors)
+
+        # If all good, save and go to step3
+        session['income_data'] = form_data
+        return redirect('/step3')
+
+    # GET Request: Load existing values
+    return render_template('form_step_2.html', form_data=session.get('income_data', {}))
+
+
+
+from flask import request, render_template, session, redirect
+from smart_suggestion import suggest_better_option  # assuming this is your function
 
 @app.route('/step3', methods=['GET', 'POST'])
 def step3():
-    errors = []
-    form_data = session.get('deductions') or {}
-
-    if request.method == 'GET' and 'from_back' not in request.args:
-        session.pop('deductions', None)
-
     if request.method == 'POST':
-        deduction_type = request.form.get('deduction_type', 'standard')
-        form_data['deduction_type'] = deduction_type
+        form = request.form
+        errors = []
 
-        # Collect itemized values (even if not used)
-        for field in ['mortgage', 'state_taxes', 'charity', 'medical']:
-            form_data[field] = request.form.get(field, '').strip()
+        deduction_type = form.get("deduction_type")
+        dependents_input = form.get("dependents", "").strip()
 
-        mortgage = state_taxes = charity = medical = 0.0
-        agi = float(session.get('agi', 0))  # Must be set earlier in the flow
+        # Only parse itemized fields if itemized is selected
+        mortgage_input = form.get("mortgage", "").strip() if deduction_type == "itemized" else "0"
+        state_taxes_input = form.get("state_taxes", "").strip() if deduction_type == "itemized" else "0"
+        charity_input = form.get("charity", "").strip() if deduction_type == "itemized" else "0"
+        medical_input = form.get("medical", "").strip() if deduction_type == "itemized" else "0"
 
-        def safe_float(val):
+        # --- Safe parsing ---
+        def safe_float(val, label):
             try:
-                return float(val) if val.strip() not in ("", None) else 0.0
-            except:
-                return None
+                return float(val)
+            except ValueError:
+                errors.append(f"{label} must be a valid number.")
+                return 0.0
 
-        if deduction_type == 'itemized':
-            # Mortgage Interest
-            mortgage = safe_float(form_data['mortgage'])
-            if mortgage is None:
-                errors.append("Mortgage must be a number.")
-            elif mortgage > 50000:
-                errors.append("Mortgage interest seems too high. Max allowed is typically ~$50,000/year on a $750,000 loan.")
+        mortgage = safe_float(mortgage_input, "Mortgage Interest")
+        state_taxes = safe_float(state_taxes_input, "State Taxes")
+        charity = safe_float(charity_input, "Charitable Contributions")
+        medical = safe_float(medical_input, "Medical Expenses")
 
-            # State Taxes
-            state_taxes = safe_float(form_data['state_taxes'])
-            if state_taxes is None:
-                errors.append("State taxes must be a number.")
-            elif state_taxes > 10000:
-                errors.append("State and local tax deductions are capped at $10,000 by the IRS.")
-
-            # Charity
-            charity = safe_float(form_data['charity'])
-            if charity is None:
-                errors.append("Charity must be a number.")
-            elif agi and charity > 0.6 * agi:
-                errors.append("Charitable contributions cannot exceed 60% of your AGI.")
-
-            # Medical
-            medical = safe_float(form_data['medical'])
-            if medical is None:
-                errors.append("Medical expenses must be a number.")
-            elif agi and medical < 0.075 * agi:
-                errors.append("Medical expenses are only deductible above 7.5% of AGI.")
-
-        # Dependents
-        dependents_raw = request.form.get('dependents', '').strip()
-        form_data['dependents'] = dependents_raw
 
         try:
-            dependents = int(float(dependents_raw)) if dependents_raw else 0
-            if dependents < 0 or dependents > 15:
-                errors.append("Dependents must be between 0 and 15.")
-        except:
-            errors.append("Dependents must be a whole number.")
+            dependents = int(dependents_input)
+        except ValueError:
+            errors.append("Number of dependents must be a valid whole number.")
+            dependents = 0
 
+        # --- Validation Rules ---
+        if deduction_type not in ['standard', 'itemized']:
+            errors.append("Please select a deduction type — this is required.")
+
+        if deduction_type == 'itemized':
+            if mortgage < 0 or mortgage > 1_000_000:
+                errors.append("Mortgage Interest must not exceed $1,000,000.")
+            if state_taxes < 0 or state_taxes > 10_000:
+                errors.append("State and local taxes deduction is capped at $10,000.")
+            if charity < 0 or charity > 500_000:
+                errors.append("Charity donations must be $500,000 or less.")
+            if medical < 0 or medical > 250_000:
+                errors.append("Medical expenses must not exceed $250,000.")
+
+        if dependents < 0 or dependents > 15:
+            errors.append("Number of dependents should be between 0 and 15.")
+
+        # --- On Validation Failure ---
         if errors:
-            return render_template('form_step_3.html', errors=errors, form_data=form_data)
+            return render_template(
+                "form_step_3.html",
+                form_data=form,
+                errors=errors
+            )
 
-        # Save clean session
+        # --- Save to Session ---
         session['deductions'] = {
-            'deduction_type': deduction_type,
-            'itemized': {
-                'mortgage': mortgage,
-                'state_taxes': state_taxes,
-                'charity': charity,
-                'medical': medical
-            },
-            'dependents': dependents
+            "deduction_type": deduction_type,
+            "itemized": {
+                "mortgage": mortgage,
+                "state_taxes": state_taxes,
+                "charity": charity,
+                "medical": medical
+            } if deduction_type == "itemized" else {},
+            "dependents": dependents
         }
+
+        # --- Run Smart Suggestion ---
+        def run_smart_suggestion():
+            return suggest_better_option(
+                session.get('income_data', {}),
+                session.get('deductions', {}),
+                session.get('personal_info', {}),
+                float(session.get('income_data', {}).get('taxes_paid', 0) or 0)
+            )
+
+        suggestion = run_smart_suggestion()
+        if suggestion:
+            session['smart_suggestion'] = suggestion
+            return redirect('/smart_suggestion')
+
         return redirect('/summary')
 
-    return render_template('form_step_3.html', errors=errors, form_data=form_data)
+    # On GET
+    return render_template("form_step_3.html", form_data=session.get('deductions', {}), errors=[])
+
+
+@app.route('/apply_suggestion', methods=['GET'])
+def apply_suggestion():
+    suggestion = session.get('smart_suggestion')
+    if suggestion:
+        # Apply suggested filing status
+        session['personal_info']['filing_status'] = suggestion['suggested_status']
+
+        # Recalculate taxes fresh to get full result
+        income = session.get('income_data', {})
+        deductions = session.get('deductions', {})
+        taxes_paid = float(income.get("taxes_paid", 0) or 0)
+        dependents = deductions.get("dependents", 0)
+
+        session['tax_result'] = calculate_tax(
+            income_data=income,
+            deductions_data=deductions,
+            filing_status=suggestion['suggested_status'],
+            dependents=dependents,
+            taxes_paid=taxes_paid
+        )
+
+    return redirect('/summary')
+
+
+@app.route('/smart_suggestion')
+def smart_suggestion():
+    suggestion = session.get('smart_suggestion')
+    
+    # If there's no suggestion or it's not beneficial, redirect to summary
+    if not suggestion or suggestion.get('refund_boost', 0) <= 0:
+        return redirect('/summary')
+
+    return render_template(
+        'smart_suggestion.html',
+        suggestion=suggestion
+    )
 
 
 @app.route('/summary')
 def summary():
-    try:
-        personal_info = session.get('personal_info', {})
-        income = session.get('income', {})
-        deductions = session.get('deductions', {})
+    personal = session.get('personal_info', {})
+    income = session.get('income_data', {})
+    deductions = session.get('deductions', {})
+    taxes_paid = float(income.get("taxes_paid", 0) or 0)
+    dependents = deductions.get("dependents", 0)
+    filing_status = personal.get("filing_status", "single")
 
-        if not (personal_info and income and deductions):
-            return render_template("error.html", message="Incomplete session data. Please start again.")
+    # Calculate tax if not already stored (i.e., not from suggestion flow)
+    if 'tax_result' not in session:
+        session['tax_result'] = calculate_tax(
+            income_data=income,
+            deductions_data=deductions,
+            filing_status=filing_status,
+            dependents=dependents,
+            taxes_paid=taxes_paid
+        )
 
-        taxes_paid = float(income.get("taxes_paid", 0))
-        result = calculate_tax(income, deductions, personal_info['filing_status'], deductions.get("dependents", 0), taxes_paid)
+    return render_template(
+    'summary.html',
+    info=personal,
+    income=income,
+    deductions=deductions,
+    tax_result=session.get('tax_result', {}),
+    result=session.get('tax_result', {}),  # <-- add this line
+    suggestion=session.get('smart_suggestion', {})
+)
 
-        # ✅ Avoid generic error.html redirect
-        if "error" in result:
-            # Stay on step2 and repopulate values instead of redirecting to error
-            return render_template("form_step_2.html", error=result["error"], form_data=income)
+@app.route('/download_pdf')
+def download_pdf():
+    from flask import send_file
+    output_path = "output/tax_summary.pdf"  # adjust based on your actual path
 
-        session['tax_result'] = result
-        return render_template('summary.html', info=personal_info, income=income, deductions=deductions, result=result)
+    personal = session.get("personal_info", {})
+    income = session.get("income_data", {})
+    deductions = session.get("deductions_data", {})
+    dependents = deductions.get("dependents", 0)
+    result = session.get("tax_result", {})
 
-    except Exception as e:
-        return render_template('error.html', message="Summary generation failed: " + str(e))
-
-
-@app.route('/download')
-def download():
-    try:
-        personal_info = session.get('personal_info', {})
-        income = session.get('income', {})
-        deductions = session.get('deductions', {})
-        result = session.get('tax_result', {})
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"output/tax_return_{timestamp}.pdf"
-
-        # ✅ Use the improved PDF generator
-        generate_better_tax_pdf(personal_info, income, deductions, result, filename)
-
-        return send_file(filename, as_attachment=True)
-    except Exception as e:
-        return render_template('error.html', message="Failed to generate PDF: " + str(e))
+    generate_filled_pdf(personal, income, deductions, dependents, result, output_path)
+    return send_file(output_path, as_attachment=True)
 
 
-@app.errorhandler(404)
-def page_not_found(e):
-    return render_template('error.html', message="Page not found"), 404
+
 
 
 if __name__ == '__main__':
-    if not os.path.exists('output'):
-        os.makedirs('output')
     app.run(debug=True)

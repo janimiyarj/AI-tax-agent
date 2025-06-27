@@ -1,119 +1,133 @@
 def validate_amount(field_name, value, max_allowed):
     try:
-        if value in ("", None):
-            val = 0.0
-        elif isinstance(value, str):
-            val = float(value.strip())
-        else:
-            val = float(value)  # handles float, int, etc.
-        
+        val = float(value.strip()) if value not in ("", None) else 0.0
         if val < 0 or val > max_allowed:
             raise ValueError
         return val
     except:
         raise ValueError(f"{field_name} must be a valid number between 0 and {max_allowed}.")
 
+def calculate_tax(income_data, deductions_data, filing_status, dependents, taxes_paid):
+    wages = float(income_data.get("wages", 0) or 0)
+    interest = float(income_data.get("interest", 0) or 0)
+    dividends = float(income_data.get("dividends", 0) or 0)
+    business_income = float(income_data.get("business_income", 0) or 0)
+    other_income = float(income_data.get("other_income", 0) or 0)
 
+    total_income = wages + interest + dividends + business_income + other_income
 
-
-def calculate_tax(income_data, deductions_data, filing_status, dependents, taxes_paid=0):
-    try:
-        # --- Validate and sum income
-        wages = validate_amount("Wages", income_data.get("wages", 0), 1_000_000)
-        interest = validate_amount("Interest", income_data.get("interest", 0), 500_000)
-        dividends = validate_amount("Dividends", income_data.get("dividends", 0), 500_000)
-        business_income = validate_amount("Business Income", income_data.get("business_income", 0), 5_000_000)
-        other_income = validate_amount("Other Income", income_data.get("other_income", 0), 2_000_000)
-        total_income = wages + interest + dividends + business_income + other_income
-
-        # --- Calculate total deductions
-        deduction_type = deductions_data.get('deduction_type', 'standard')
-        if deduction_type == 'standard':
-            standard_deductions = {
-                'single': 13850,
-                'married_joint': 27700,
-                'married_separate': 13850,
-                'head_household': 20800
-            }
-            total_deductions = standard_deductions.get(filing_status, 13850)
+    # Determine deduction
+    if deductions_data.get("deduction_type") == "standard":
+        if filing_status == "single":
+            total_deductions = 13850
+        elif filing_status == "married_filing_jointly":
+            total_deductions = 27700
+        elif filing_status == "head_household":
+            total_deductions = 20800
         else:
-            itemized = deductions_data.get('itemized', {})
-            mortgage = validate_amount("Mortgage", itemized.get('mortgage', 0), 100_000)
-            state_taxes = validate_amount("State Taxes", itemized.get('state_taxes', 0), 100_000)
-            charity = validate_amount("Charity", itemized.get('charity', 0), 100_000)
-            medical = validate_amount("Medical", itemized.get('medical', 0), 100_000)
-            total_deductions = mortgage + state_taxes + charity + medical
+            total_deductions = 13850  # default
+    else:
+        itemized = deductions_data.get("itemized", {})
+        total_deductions = sum([
+            float(itemized.get("mortgage", 0)),
+            float(itemized.get("state_taxes", 0)),
+            float(itemized.get("charity", 0)),
+            float(itemized.get("medical", 0)),
+        ])
 
-        taxable_income = max(0, total_income - total_deductions)
+    taxable_income = max(0, total_income - total_deductions)
 
-        # --- Tax brackets (2023)
-        brackets = {
-            "single": [
-                (0, 11000, 0.10),
-                (11000, 44725, 0.12),
-                (44725, 95375, 0.22),
-                (95375, 182100, 0.24)
-            ],
-            "married_joint": [
-                (0, 22000, 0.10),
-                (22000, 89450, 0.12),
-                (89450, 190750, 0.22),
-                (190750, 364200, 0.24)
-            ],
-            "married_separate": [
-                (0, 11000, 0.10),
-                (11000, 44725, 0.12),
-                (44725, 95375, 0.22),
-                (95375, 182100, 0.24)
-            ],
-            "head_household": [
-                (0, 15700, 0.10),
-                (15700, 59850, 0.12),
-                (59850, 95350, 0.22),
-                (95350, 182100, 0.24)
-            ]
-        }
+    # ✅ Use 2023 progressive tax brackets for SINGLE
+    brackets = [
+        (11000, 0.10),
+        (44725, 0.12),
+        (95375, 0.22),
+        (182100, 0.24),
+        (231250, 0.32),
+        (578125, 0.35),
+        (float('inf'), 0.37)
+    ]
 
-        # --- Tax calculation
-        tax_owed = 0
-        marginal_rate = 0
-        for lower, upper, rate in brackets.get(filing_status, brackets["single"]):
-            if taxable_income > lower:
-                income_in_bracket = min(taxable_income, upper) - lower
-                tax_owed += income_in_bracket * rate
-                marginal_rate = rate
-            else:
-                break
+    tax_owed = 0
+    remaining_income = taxable_income
+    previous_limit = 0
+    marginal_rate = 0
 
-        effective_rate = (tax_owed / total_income * 100) if total_income > 0 else 0
-
-        # --- Refund / Tax Due
-        if tax_owed > taxes_paid:
-            final_tax_owed = round(tax_owed - taxes_paid, 2)
-            refund_amount = 0
+    for limit, rate in brackets:
+        if taxable_income > limit:
+            tax_owed += (limit - previous_limit) * rate
+            previous_limit = limit
         else:
-            final_tax_owed = 0
-            refund_amount = round(taxes_paid - tax_owed, 2)
+            tax_owed += (remaining_income - previous_limit) * rate
+            marginal_rate = int(rate * 100)
+            break
 
-        # --- Dependent credit (only applies if no tax is owed)
-        dependent_credit = 0
-        if final_tax_owed == 0 and dependents > 0:
-            dependent_credit = dependents * 12
-            refund_amount += dependent_credit
+    refund = max(0, taxes_paid - tax_owed)
 
+    return {
+        "wages": wages,
+        "interest": interest,
+        "dividends": dividends,
+        "business_income": business_income,
+        "other_income": other_income,
+        "total_income": total_income,
+        "deduction_type": deductions_data.get("deduction_type"),
+        "dependents": dependents,
+        "total_deductions": total_deductions,
+        "taxable_income": taxable_income,
+        "effective_tax_rate": round((tax_owed / total_income) * 100, 2) if total_income else 0,
+        "marginal_tax_rate": marginal_rate,
+        "tax_owed": round(tax_owed, 2),
+        "federal_tax_withheld": taxes_paid,
+        "refund": round(refund, 2)
+    }
+
+
+def suggest_smart_filing(income_data, deductions_data, dependents, taxes_paid):
+    statuses = ["single", "head_household"]
+    base_status = "single"
+    base_result = calculate_tax(income_data, deductions_data, base_status, dependents, taxes_paid)
+    best_result = base_result
+    best_status = base_status
+
+    for status in statuses:
+        if status != base_status:
+            result = calculate_tax(income_data, deductions_data, status, dependents, taxes_paid)
+            if result.get("refund", 0) > best_result.get("refund", 0):  # FIXED HERE
+                best_result = result
+                best_status = status
+
+    if best_status != base_status:
         return {
-            "total_income": round(total_income, 2),
-            "total_deductions": round(total_deductions, 2),
-            "taxable_income": round(taxable_income, 2),
-            "tax_owed": round(tax_owed, 2),  # raw before payments
-            "final_tax_owed": final_tax_owed,  # final after payments
-            "refund_amount": refund_amount,
-            "effective_tax_rate": round(effective_rate, 2),
-            "marginal_tax_rate": int(marginal_rate * 100)
+            "suggested_status": best_status,
+            "refund_boost": round(best_result['refund'] - base_result['refund'], 2),  # FIXED HERE
+            "new_result": best_result
         }
+    return None
 
-    except ValueError as ve:
-        return {"error": str(ve)}
-    except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
 
+def generate_filled_pdf(personal, income, deductions, dependents, result, output_path):
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    pdf.cell(200, 10, "AI Tax Summary", ln=True, align="C")
+    pdf.ln(5)
+
+    for section, data in {
+        "Personal Info": personal,
+        "Income Details": income,
+        "Deductions": deductions,
+        "Dependents": {"dependents": dependents},
+        "Results": result
+    }.items():
+        pdf.set_font("Arial", style="B", size=12)
+        pdf.cell(200, 10, section, ln=True)
+        pdf.set_font("Arial", size=11)
+        for key, value in data.items():
+            pdf.cell(200, 8, f"{key.replace('_', ' ').title()}: {value}", ln=True)
+        pdf.ln(3)
+
+    pdf.output(output_path)

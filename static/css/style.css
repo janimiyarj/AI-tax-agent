@@ -7,6 +7,28 @@ body {
   color: #212529;
 }
 
+/* Animate.css CDN (add in base.html head) */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css');
+
+.field-hover {
+  transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease;
+}
+
+.field-hover:focus, .field-hover:hover {
+  box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+  border-color: #198754;
+}
+
+.transition {
+  transition: all 0.3s ease-in-out;
+}
+
+.transition:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+
 h2, h4, h5 {
   font-weight: 600;
 }
@@ -61,7 +83,6 @@ button, .btn {
   font-size: 1.3rem;
   font-weight: 600;
 }
-
 
 .btn-success {
   background-color: #198754;
@@ -131,6 +152,11 @@ small.text-muted {
 
 .bg-teal {
   background-color: #187250 !important;
+}
+
+.refund-amount {
+  color: #007b7b !important;
+  font-weight: 600;
 }
 
 .text-teal {

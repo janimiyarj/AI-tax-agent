@@ -1,74 +1,72 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-  <h2 class="mb-4">Step 2 of 3: Income Sources</h2>
-
-  {% if error %}
-    <div class="alert alert-danger">{{ error }}</div>
+<div class="container mt-5 animate__animated animate__fadeIn">
+  <h2 class="mb-4 fw-bold">Step 2 of 3: Income Sources</h2>
+  
+  {% if errors %}
+    <div class="alert alert-danger shadow-sm animate__animated animate__shakeX">
+      <strong>⚠️ Please fix the following issues:</strong>
+      <ul class="mb-0 mt-2">
+        {% for err in errors %}
+          <li>{{ err }}</li>
+        {% endfor %}
+      </ul>
+    </div>
   {% endif %}
 
-  <form method="POST" action="/step2" novalidate>
+    <form method="POST" action="/step2" novalidate class="mt-4">
     <div class="row mb-3">
       <div class="col-md-6">
-        <label for="wages" class="form-label">Wages (W-2) *</label>
-        <input type="number" name="wages" id="wages" class="form-control"
+        <label for="wages" class="form-label">Wages (W-2)</label>
+        <input type="number" name="wages" id="wages" class="form-control border border-dark-subtle shadow-sm hover-shadow"
                min="0" max="1000000" step="0.01"
-               value="{{ form_data.get('wages') if form_data.get('wages') is not none else '' }}" required>
+               value="{{ form_data.get('wages', '') }}" required>
       </div>
       <div class="col-md-6">
         <label for="interest" class="form-label">Interest Income</label>
-        <input type="number" name="interest" id="interest" class="form-control"
+        <input type="number" name="interest" id="interest" class="form-control border border-dark-subtle shadow-sm hover-shadow"
                min="0" max="500000" step="0.01"
-               value="{{ form_data.get('interest') if form_data.get('interest') is not none else '' }}">
+               value="{{ form_data.get('interest', '') }}">
       </div>
     </div>
 
     <div class="row mb-3">
       <div class="col-md-6">
         <label for="dividends" class="form-label">Dividend Income</label>
-        <input type="number" name="dividends" id="dividends" class="form-control"
+        <input type="number" name="dividends" id="dividends" class="form-control border border-dark-subtle shadow-sm hover-shadow"
                min="0" max="500000" step="0.01"
-               value="{{ form_data.get('dividends') if form_data.get('dividends') is not none else '' }}">
+               value="{{ form_data.get('dividends', '') }}">
       </div>
       <div class="col-md-6">
         <label for="business_income" class="form-label">Business Income</label>
-        <input type="number" name="business_income" id="business_income" class="form-control"
+        <input type="number" name="business_income" id="business_income" class="form-control border border-dark-subtle shadow-sm hover-shadow"
                min="0" max="5000000" step="0.01"
-               value="{{ form_data.get('business_income') if form_data.get('business_income') is not none else '' }}">
+               value="{{ form_data.get('business_income', '') }}">
       </div>
     </div>
 
     <div class="row mb-4">
       <div class="col-md-6">
         <label for="other_income" class="form-label">Other Income</label>
-        <input type="number" name="other_income" id="other_income" class="form-control"
+        <input type="number" name="other_income" id="other_income" class="form-control border border-dark-subtle shadow-sm hover-shadow"
                min="0" max="2000000" step="0.01"
-               value="{{ form_data.get('other_income') if form_data.get('other_income') is not none else '' }}">
+               value="{{ form_data.get('other_income', '') }}">
         <small class="text-muted">e.g., rental, gig work, royalties</small>
       </div>
     </div>
 
     <div class="mb-3">
       <label for="taxes_paid" class="form-label">Taxes Paid (from W-2 or other)</label>
-      <input type="number" name="taxes_paid" class="form-control"
+      <input type="number" name="taxes_paid" class="form-control border border-dark-subtle shadow-sm hover-shadow"
              id="taxes_paid" min="0" step="0.01"
              placeholder="Enter taxes already paid"
-             value="{{ form_data.get('taxes_paid') if form_data.get('taxes_paid') is not none else '' }}">
+             value="{{ form_data.get('taxes_paid', '') }}">
     </div>
 
-    <div class="d-flex justify-content-between">
-      <a href="/step1" class="btn btn-outline-secondary">← Back</a>
-      <button type="submit" class="btn btn-primary">Next →</button>
+    <div class="d-flex justify-content-between mt-4">
+      <a href="/step1" class="btn btn-outline-secondary px-4 py-2">← Back</a>
+      <button type="submit" class="btn btn-success px-4 py-2">Next →</button>
     </div>
   </form>
 </div>
-
-<script>
-  // Prevent e, E, +, - characters in number fields
-  document.querySelectorAll('input[type="number"]').forEach(function(input) {
-    input.addEventListener('input', function(e) {
-      e.target.value = e.target.value.replace(/[eE\+\-]/g, '');
-    });
-  });
-</script>
 {% endblock %}

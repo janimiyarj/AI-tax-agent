@@ -1,22 +1,29 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-5">
-  <h2 class="mb-4">Step 1 of 3: Personal Information</h2>
+<div class="container mt-5 animate__animated animate__fadeIn">
+  <h2 class="mb-4 fw-bold">Step 1 of 3: Personal Information</h2>
 
-  {% if error %}
-  <div class="alert alert-danger">{{ error }}</div>
+  {% if errors %}
+    <div class="alert alert-danger shadow-sm animate__animated animate__shakeX">
+      <strong>⚠️ Please fix the following issues:</strong>
+      <ul class="mb-0 mt-2">
+        {% for err in errors %}
+          <li>{{ err }}</li>
+        {% endfor %}
+      </ul>
+    </div>
   {% endif %}
 
   <form action="/step1" method="POST" novalidate>
     <div class="row">
       <div class="col-md-6 mb-3">
         <label for="full_name" class="form-label">Full Name</label>
-        <input type="text" name="full_name" class="form-control" id="full_name" maxlength="100"
+        <input type="text" name="full_name" class="form-control field-hover" id="full_name" maxlength="100"
                placeholder="John Doe" value="{{ form_data.full_name or '' }}" required>
       </div>
       <div class="col-md-6 mb-3">
         <label for="ssn" class="form-label">Social Security Number</label>
-        <input type="text" name="ssn" class="form-control" id="ssn"
+        <input type="text" name="ssn" class="form-control field-hover" id="ssn"
                pattern="\d{3}-\d{2}-\d{4}" maxlength="11"
                placeholder="123-45-6789" value="{{ form_data.ssn or '' }}" required>
         <small class="text-muted">Format: 123-45-6789</small>
@@ -26,7 +33,7 @@
     <div class="row">
       <div class="col-md-4 mb-3">
         <label for="filing_status" class="form-label">Filing Status</label>
-        <select name="filing_status" class="form-select" id="filing_status" required>
+        <select name="filing_status" class="form-select field-hover" id="filing_status" required>
           <option value="" disabled {% if not form_data.filing_status %}selected{% endif %}>Choose...</option>
           <option value="single" {% if form_data.filing_status == 'single' %}selected{% endif %}>Single</option>
           <option value="married_joint" {% if form_data.filing_status == 'married_joint' %}selected{% endif %}>Married Filing Jointly</option>
@@ -36,33 +43,33 @@
       </div>
       <div class="col-md-8 mb-3">
         <label for="address" class="form-label">Street Address</label>
-        <input type="text" name="address" class="form-control" id="address" maxlength="120"
+        <input type="text" name="address" class="form-control field-hover" id="address" maxlength="120"
                placeholder="123 Main St" value="{{ form_data.address or '' }}" required>
       </div>
     </div>
 
     <div class="row">
       <div class="col-md-4 mb-3">
-        <label for="city" class="form-label">City *</label>
-        <input type="text" name="city" class="form-control" id="city" maxlength="50"
+        <label for="city" class="form-label">City</label>
+        <input type="text" name="city" class="form-control field-hover" id="city" maxlength="50"
                placeholder="Los Angeles" value="{{ form_data.city or '' }}" required>
       </div>
       <div class="col-md-4 mb-3">
         <label for="state" class="form-label">State (2-letter)</label>
-        <input type="text" name="state" class="form-control" id="state" pattern="[A-Za-z]{2}" maxlength="2"
+        <input type="text" name="state" class="form-control field-hover" id="state" pattern="[A-Za-z]{2}" maxlength="2"
                placeholder="CA" value="{{ form_data.state or '' }}" required>
       </div>
       <div class="col-md-4 mb-3">
         <label for="zip_code" class="form-label">ZIP Code</label>
-        <input type="text" name="zip_code" class="form-control" id="zip_code"
+        <input type="text" name="zip_code" class="form-control field-hover" id="zip_code"
                pattern="\d{5}(-\d{4})?" maxlength="10"
                placeholder="12345 or 12345-6789" value="{{ form_data.zip_code or '' }}" required>
       </div>
     </div>
 
-    <div class="d-flex justify-content-between">
-      <a href="/" class="btn btn-outline-secondary">← Back to Home</a>
-      <button type="submit" class="btn btn-primary">Next →</button>
+    <div class="d-flex justify-content-between mt-4">
+      <a href="/" class="btn btn-outline-secondary px-4 py-2 shadow-sm transitiony">← Back to Home</a>
+      <button type="submit" class="btn btn-success px-4 py-2 shadow-sm transition">Next →</button>
     </div>
   </form>
 </div>

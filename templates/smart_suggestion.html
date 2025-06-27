@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Filing Suggestion</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"/>
+  <style>
+    body {
+      background-color: #f0f7ff;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .card {
+      border: none;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      padding: 2rem;
+    }
+    .btn-green {
+      background-color: #28a745;
+      color: white;
+      font-weight: bold;
+    }
+    .btn-red {
+      background-color: #dc3545;
+      color: white;
+      font-weight: bold;
+    }
+    .emoji {
+      font-size: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-5 d-flex justify-content-center">
+    <div class="card text-center" style="width: 100%; max-width: 500px;">
+      <div class="emoji mb-2">🧠</div>
+      <h3><strong>Smart Filing Suggestion</strong></h3>
+      <hr>
+      <p><strong>Suggested Filing Status:</strong> {{ suggestion['status'].replace('_', ' ').title() }}</p>
+      {% if suggestion['boost'] > 0 %}
+        <p><strong>Boost in Refund:</strong> ${{ suggestion['boost'] }}</p>
+        <form method="post" action="/apply_suggestion">
+          <button type="submit" class="btn btn-green btn-lg w-100 my-2">✅ Accept Suggestion & Recalculate</button>
+        </form>
+        <form method="get" action="/summary">
+          <button type="submit" class="btn btn-red btn-lg w-100">❌ Keep Current & Continue</button>
+        </form>
+      {% else %}
+        <div class="alert alert-warning mt-3" role="alert">
+          This suggestion does not increase your refund. Keeping your current filing status might be better.
+        </div>
+        <form method="get" action="/summary">
+          <button type="submit" class="btn btn-secondary btn-lg w-100 mt-2">⬅️ Go Back to Summary</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+</body>
+</html>
