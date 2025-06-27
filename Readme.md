@@ -125,10 +125,14 @@ PDF summary generated → downloadable return.
 
 ## Author
 Jani Miya Shaik
+
 M.S. in Data Science and AI, SDSU
+
 3.8+ years experience in AI, LLMs, and cloud deployments
+
 LinkedIn : https://www.linkedin.com/in/jani-miya-shaik/
 
 ## Disclaimer
 This is a prototype developed for educational and demonstration purposes.
+
 Not intended for official tax filing. Always consult a licensed tax professional.
