@@ -1,3 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -62,10 +64,8 @@
     </style>
 </head>
 <body>
-{% extends "base.html" %}
-{% block content %}
 <div class="container summary-container">
-    <h2 class="text-center mb-4">Your Tax Summary for 2023</h2>
+    <h2 class="text-center mb-4">Your Tax Summary</h2>
 
     <div class="alert alert-info mt-4">
         <strong>Filing Status:</strong> {{ info.get('filing_status', 'N/A') }}<br>
@@ -111,11 +111,11 @@
     <!-- Conditional Refund/Owe Message -->
     {% if tax_result.get('refund', 0) > 0 %}
     <div class="highlight refund">
-        <h4>🎉 Congratulations! You're receiving a refund of <strong>${{ tax_result.get('refund', 0) }}</strong></h4>
+        <h4>🎉 Congratulations! You're receiving a refund of <strong class="skyblue">${{ tax_result.get('refund', 0) }}</strong></h4>
     </div>
     {% elif tax_result.get('tax_owed', 0)|float > income.get('taxes_paid', 0)|float %}
     <div class="highlight owe">
-        <h4>❗ You owe <strong>${{ "%.2f"|format(tax_result.get('tax_owed', 0)|float - income.get('taxes_paid', 0)|float) }}
+        <h4>❗ You owe <strong class="black" >${{ "%.2f"|format(tax_result.get('tax_owed', 0)|float - income.get('taxes_paid', 0)|float) }}
             </strong> in taxes. Please make a payment to the IRS.</h4>
     </div>
     {% else %}
@@ -136,7 +136,7 @@
 
     <div class="d-flex justify-content-between mt-4">
         <a href="/" class="btn btn-outline-primary">← Back to Home</a>
-        <a href="/download_pdf" class="btn btn-success">📄 Download Summary as PDF</a>
+        <a href="/download" class="btn btn-success"> Download Summary as PDF</a>
     </div>
 </div>
 </body>

@@ -2,10 +2,17 @@ from flask import Flask, render_template, request, redirect, session, send_file
 from datetime import datetime
 import os, re
 from tax_logic import calculate_tax, generate_filled_pdf, suggest_smart_filing
+from openai_suggestions import generate_financial_suggestion
+import os
+import openai
+from flask import send_file
+from io import BytesIO
+from pdf_generator import generate_better_tax_pdf
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key_here'
-
 
 @app.route('/')
 def index():
@@ -199,19 +206,32 @@ def step3():
             "dependents": dependents
         }
 
-        # --- Run Smart Suggestion ---
-        def run_smart_suggestion():
-            return suggest_better_option(
-                session.get('income_data', {}),
-                session.get('deductions', {}),
-                session.get('personal_info', {}),
-                float(session.get('income_data', {}).get('taxes_paid', 0) or 0)
-            )
+        # --- Get OpenAI suggestion ---
+        suggestion = generate_financial_suggestion(
+            session.get('income_data', {}),
+            session.get('deductions', {}),
+            session.get('personal_info', {}),
+            float(session.get('income_data', {}).get('taxes_paid', 0) or 0)
+        )
+        print("🔍 OpenAI Suggestion Output:", suggestion)
 
-        suggestion = run_smart_suggestion()
-        if suggestion:
+        if suggestion and suggestion.get("refund_boost", 0) > 0:
             session['smart_suggestion'] = suggestion
-            return redirect('/smart_suggestion')
+            return redirect('/suggestion_review')
+
+        # # --- Run Smart Suggestion ---
+        # def run_smart_suggestion():
+        #     return suggest_better_option(
+        #         session.get('income_data', {}),
+        #         session.get('deductions', {}),
+        #         session.get('personal_info', {}),
+        #         float(session.get('income_data', {}).get('taxes_paid', 0) or 0)
+        #     )
+
+        # suggestion = run_smart_suggestion()
+        # if suggestion:
+        #     session['smart_suggestion'] = suggestion
+        #     return redirect('/smart_suggestion')
 
         return redirect('/summary')
 
@@ -256,6 +276,66 @@ def smart_suggestion():
         suggestion=suggestion
     )
 
+@app.route('/suggestion_review', methods=['GET'])
+def suggestion_review():
+    suggestion = session.get('smart_suggestion')
+    if not suggestion:
+        return redirect('/summary')  # fallback if no suggestion
+
+    return render_template("suggestion_review.html", suggestion=suggestion)
+
+@app.route('/apply_openai_suggestion', methods=['POST'])
+def apply_openai_suggestion():
+    suggestion = session.get('smart_suggestion', {})
+
+    # Apply suggested values if available
+    if suggestion:
+        # Update filing status
+        if 'suggested_status' in suggestion:
+            session['personal_info']['filing_status'] = suggestion['suggested_status']
+
+        # Update deductions if suggestion includes them
+        if 'suggested_deductions' in suggestion:
+            session['deductions'] = suggestion['suggested_deductions']
+
+        # Update income if suggestion includes it (e.g., move income types)
+        if 'suggested_income' in suggestion:
+            session['income_data'] = suggestion['suggested_income']
+
+        # Recalculate tax with new values
+        income = session.get('income_data', {})
+        deductions = session.get('deductions', {})
+        dependents = deductions.get("dependents", 0)
+        taxes_paid = float(income.get("taxes_paid", 0) or 0)
+
+        session['tax_result'] = calculate_tax(
+            income_data=income,
+            deductions_data=deductions,
+            filing_status=session['personal_info'].get("filing_status", "single"),
+            dependents=dependents,
+            taxes_paid=taxes_paid
+        )
+
+    return redirect('/summary')
+
+@app.route('/reject_openai_suggestion', methods=['POST'])
+def reject_openai_suggestion():
+    # Use existing values, just recalculate tax normally
+    income = session.get('income_data', {})
+    deductions = session.get('deductions', {})
+    dependents = deductions.get("dependents", 0)
+    taxes_paid = float(income.get("taxes_paid", 0) or 0)
+
+    session['tax_result'] = calculate_tax(
+        income_data=income,
+        deductions_data=deductions,
+        filing_status=session['personal_info'].get("filing_status", "single"),
+        dependents=dependents,
+        taxes_paid=taxes_paid
+    )
+
+    return redirect('/summary')
+
 
 @app.route('/summary')
 def summary():
@@ -286,22 +366,51 @@ def summary():
     suggestion=session.get('smart_suggestion', {})
 )
 
-@app.route('/download_pdf')
-def download_pdf():
-    from flask import send_file
-    output_path = "output/tax_summary.pdf"  # adjust based on your actual path
 
-    personal = session.get("personal_info", {})
+@app.route("/download")
+def download_pdf():
+    info = session.get("personal_info", {})
     income = session.get("income_data", {})
-    deductions = session.get("deductions_data", {})
-    dependents = deductions.get("dependents", 0)
+    deductions = session.get("deductions", {})
     result = session.get("tax_result", {})
 
-    generate_filled_pdf(personal, income, deductions, dependents, result, output_path)
-    return send_file(output_path, as_attachment=True)
+    pdf_bytes, filename = generate_better_tax_pdf(info, income, deductions, result)
+    return send_file(BytesIO(pdf_bytes), download_name=filename, as_attachment=True)
 
 
+chat_memory = []
+@app.route("/ai_tax_advice", methods=["GET", "POST"])
+def ai_chat():
+    global chat_memory
 
+    if request.method == 'POST':
+        if request.form.get("reset"):
+            chat_memory = []
+        else:
+            user_input = request.form.get("user_input", "").strip()
+            if user_input:
+                openai.api_key = os.getenv("OPENAI_API_KEY")
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": "You are a helpful AI Tax Advisor."},
+                        *[
+                            {"role": "user", "content": entry["user"]} if i % 2 == 0 else
+                            {"role": "assistant", "content": entry["ai"]}
+                            for i, entry in enumerate(chat_memory)
+                        ],
+                        {"role": "user", "content": user_input}
+                    ]
+                )
+                ai_response = response.choices[0].message['content']
+                chat_memory.append({"user": user_input, "ai": ai_response})
+
+    return render_template("ai_chat.html", chat_history=chat_memory)
+
+@app.route("/reset_chat")
+def reset_chat():
+    session.pop("chat_history", None)
+    return redirect("/ai_tax_advice")
 
 
 if __name__ == '__main__':
