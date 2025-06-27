@@ -1,10 +1,10 @@
-# 🧾 AI Tax Agent – Smart Tax Filing Prototype
+#  AI Tax Agent – Smart Tax Filing Prototype
 
 A full-stack AI-powered web application that assists users in preparing simplified U.S. federal tax returns. The system securely collects user information, calculates estimated taxes, generates a downloadable PDF return, and offers AI-powered financial suggestions.
 
 ---
 
-## 🚀 Features
+##  Features
 
 -  **Secure Login & Registration** (Flask-Login + bcrypt + SQLite)
 -  **Smart Financial Suggestions** via OpenAI
