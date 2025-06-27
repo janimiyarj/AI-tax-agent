@@ -29,93 +29,98 @@ A full-stack AI-powered web application that assists users in preparing simplifi
 
 ##  Folder Structure
 
-/ai_tax_agent/
-│
-├── app.py # Main Flask app
-├── tax_logic.py # Core tax calculation logic
-├── openai_suggestions.py # AI smart filing suggestions
-├── smart_suggestion.py # Rule-based filing suggestion system
-├── pdf_generator.py # Tax form PDF generation
-├── user_auth.db # SQLite user credentials database
-│
-├── templates/ # HTML (Jinja2) templates
-│ ├── base.html
-│ ├── login.html
-│ ├── register.html
-│ ├── form_step_1.html
-│ ├── form_step_2.html
-│ ├── form_step_3.html
-│ ├── summary.html
-│ └── suggestion_review.html
-│
-├── static/ # CSS, JS, Images
-│ ├── css/
-│ ├── js/
-│ └── images/
-│
-└── README.md # 📍 You're here!
+![image](https://github.com/user-attachments/assets/13601573-cab8-48ae-baeb-7710a2ade9f7)
 
-yaml
-Copy
-Edit
-
----
 
 ##  Setup Instructions
 
 1. **Clone this repo**
 
 ### Command 1:
-   git clone https://github.com/yourname/ai-tax-agent.git
-   cd ai-tax-agent
-Install dependencies
+git clone https://github.com/yourname/ai-tax-agent.git
+  
+cd ai-tax-agent
 
 ### Command 2:
+Install dependencies
+
 pip install -r requirements.txt
+
 Set your OpenAI API key
 
 Create a .env file:
 
 ### Command 3:
 OPENAI_API_KEY=your_key_here
+
 Run the app
 
 ### Command 4:
 python app.py
+
 Visit
 
 Open http://127.0.0.1:5000 in your browser.
 
 ## System Architecture
-Frontend (HTML + Jinja2 + Bootstrap)
+Frontend (HTML + Jinja2 + Bootstrap):
+
 Renders multi-step forms, chat interface, PDF preview UI.
 
-Backend (Flask)
+Backend (Flask):
+
 Handles user input, stores sessions, controls navigation, enforces auth.
 
-Tax Calculation Engine
+Tax Calculation Engine:
+
 tax_logic.py handles deductions, credits, dependents, refund/owe logic.
 
-AI Suggestion Module
+AI Suggestion Module:
+
 openai_suggestions.py uses OpenAI GPT-4 for optimizing refund strategy.
 
-Data Flow
+Data Flow:
+
 Form steps → session storage → tax logic → result generation → PDF export.
 
 ## Demo Flow
 User registers & logs in securely.
 
+![image](https://github.com/user-attachments/assets/fdac6d5c-d140-47a6-963f-1c91382dd77f)
+
+![image](https://github.com/user-attachments/assets/13838fc2-daf5-4fad-8a77-31f292d17736)
+
+
 Completes Step 1: Personal Info (SSN, address, status).
+
+![image](https://github.com/user-attachments/assets/0adbdbed-6d85-4a48-8f0a-72162268aba0)
+
 
 Completes Step 2: Income Details (Wages, interest, etc.).
 
+![image](https://github.com/user-attachments/assets/7e59493b-7ede-43ce-ac97-72f4a50be387)
+
+
 Completes Step 3: Deductions + dependents.
 
+![image](https://github.com/user-attachments/assets/43b81ae5-5d17-4b1d-b395-eec52ad18fe7)
+
+![image](https://github.com/user-attachments/assets/c63a6e0c-c1c5-462a-9e9f-b48e74345ec0)
+
+
 Receives AI smart suggestion (e.g., change status to boost refund).
+
+![image](https://github.com/user-attachments/assets/7eea3db7-1c48-4c11-9d1f-b45968af0f5d)
+
 
 User accepts or rejects.
 
 PDF summary generated → downloadable return.
+
+![image](https://github.com/user-attachments/assets/6b8ca24e-9e2a-4a91-ac3a-2c6b5d589d51)
+
+![Uploading image.png…]()
+
 
 ## Deliverables
 1. Full working prototype for end-to-end tax prep
@@ -143,10 +148,14 @@ PDF summary generated → downloadable return.
 
 ## Author
 Jani Miya Shaik
+
 M.S. in Data Science and AI, SDSU
+
 3.8+ years experience in AI, LLMs, and cloud deployments
+
 LinkedIn : https://www.linkedin.com/in/jani-miya-shaik/
 
 ## Disclaimer
 This is a prototype developed for educational and demonstration purposes.
+
 Not intended for official tax filing. Always consult a licensed tax professional.
