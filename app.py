@@ -8,15 +8,97 @@ import openai
 from flask import send_file
 from io import BytesIO
 from pdf_generator import generate_better_tax_pdf
+from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
+from flask_bcrypt import Bcrypt
+import sqlite3
 from dotenv import load_dotenv
+
 load_dotenv()
 
 app = Flask(__name__)
+
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,   # Prevent JS from accessing cookies
+    SESSION_COOKIE_SECURE=True,     # Only transmit cookies over HTTPS
+    SESSION_COOKIE_SAMESITE='Lax'   # Helps prevent CSRF
+)
+
 app.secret_key = 'your_secret_key_here'
 
+bcrypt = Bcrypt(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+class User(UserMixin):
+    def __init__(self, id, username, email, password):
+        self.id = id
+        self.username = username
+        self.email = email
+        self.password = password
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = sqlite3.connect('user_auth.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return User(*row)
+    return None
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        email = request.form['email']
+        password = bcrypt.generate_password_hash(request.form['password']).decode('utf-8')
+
+        conn = sqlite3.connect('user_auth.db')
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
+                           (username, email, password))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return "Username already exists"
+        finally:
+            conn.close()
+
+        return redirect('/login')
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form['password']
+
+        conn = sqlite3.connect('user_auth.db')
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row and bcrypt.check_password_hash(row[3], password):
+            user = User(*row)
+            login_user(user)
+            return redirect('/')
+        else:
+            return "Invalid credentials"
+
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect('/')
+
 @app.route('/')
+@login_required
 def index():
-    session.clear()
     return render_template('index.html')
 
 from smart_suggestion import suggest_better_option
@@ -31,6 +113,7 @@ def run_smart_suggestion():
 
 
 @app.route('/step1', methods=['GET', 'POST'])
+@login_required
 def step1():
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
@@ -75,6 +158,7 @@ def step1():
 
 
 @app.route('/step2', methods=['GET', 'POST'])
+@login_required
 def step2():
     if request.method == 'POST':
         form_data = {
@@ -134,6 +218,7 @@ from flask import request, render_template, session, redirect
 from smart_suggestion import suggest_better_option  # assuming this is your function
 
 @app.route('/step3', methods=['GET', 'POST'])
+@login_required
 def step3():
     if request.method == 'POST':
         form = request.form
@@ -228,6 +313,7 @@ def step3():
 
 
 @app.route('/apply_suggestion', methods=['GET'])
+@login_required
 def apply_suggestion():
     suggestion = session.get('smart_suggestion')
     if suggestion:
@@ -252,6 +338,7 @@ def apply_suggestion():
 
 
 @app.route('/suggestion_review', methods=['GET'])
+@login_required
 def suggestion_review():
     suggestion = session.get('smart_suggestion')
     if not suggestion:
@@ -261,6 +348,7 @@ def suggestion_review():
 
 
 @app.route('/apply_openai_suggestion', methods=['GET', 'POST'])
+@login_required
 def apply_openai_suggestion():
     # ✅ Just redirect back to Step 3 without modifying session data
     session['suggestion_seen'] = True
@@ -268,6 +356,7 @@ def apply_openai_suggestion():
 
 
 @app.route('/reject_openai_suggestion', methods=['GET', 'POST'])
+@login_required
 def reject_openai_suggestion():
     # Use existing values, just recalculate tax normally
     income = session.get('income_data', {})
@@ -287,6 +376,7 @@ def reject_openai_suggestion():
 
 
 @app.route('/summary')
+@login_required
 def summary():
     personal = session.get('personal_info', {})
     income = session.get('income_data', {})
@@ -317,6 +407,7 @@ def summary():
 
 
 @app.route("/download")
+@login_required
 def download_pdf():
     info = session.get("personal_info", {})
     income = session.get("income_data", {})
@@ -329,6 +420,7 @@ def download_pdf():
 
 chat_memory = []
 @app.route("/ai_tax_advice", methods=["GET", "POST"])
+@login_required
 def ai_chat():
     global chat_memory
 
@@ -357,6 +449,7 @@ def ai_chat():
     return render_template("ai_chat.html", chat_history=chat_memory)
 
 @app.route("/reset_chat")
+@login_required
 def reset_chat():
     session.pop("chat_history", None)
     return redirect("/ai_tax_advice")
